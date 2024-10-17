@@ -3,29 +3,10 @@ const { Op } = require('sequelize')
 const db = require("../models");
 const bcrypt = require("bcrypt");
 const User = db.User;
-const { formatErrorResponse, generateToken, validateEmail } = require("../util")
+const { formatErrorResponse, validateEmail, ERROR_MESSAGES } = require("../util")
+const { generateEmailToken, generateJWT } = require("../auth");
 
 const REQUIRED_FIELDS = ["username", "password", "email", "confirmedEmail", "confirmedPassword"];
-const ERROR_MESSAGES = {
-    missingFields: "Please supply required fields.",
-    emailMismatch: "Emails do not match.",
-    passwordLength: "Password must contain at least 10 characters.",
-    invalidPassword: "Password must contain at least 1 capital letter. (X, Y, Z)",
-    passwordMismatch: "Passwords do not match.",
-    invalidSaltRounds: "Invalid salt rounds value in environment.",
-    invalidEmail: "Invalid Email.",
-    updateFieldsError: "No fields to update.",
-    duplicateEmail: "Email already in use.",
-    duplicateUsername: "Username already in use.",
-    addingUser: "Error adding new user.",
-    fetchingUsers: "Error fetching users.",
-    pagination: "Error with Pagination.",
-    fetchingUser: "Error fetching user.",
-    deletingUser: "Error deleting user.",
-    updatingUser: "Error updating user.",
-    incorrectPassword: "Old password is incorrect.",
-    updatingPassword: "Error updating password."
-};
 
 const addUser = async (userData) => {
 
@@ -82,7 +63,7 @@ const addUser = async (userData) => {
 
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-        const verificationToken = generateToken();
+        const verificationToken = generateEmailToken();
 
         const newUser = await User.create({
             firstName: !nameSupplied ? "Guest" : firstName,
@@ -95,16 +76,86 @@ const addUser = async (userData) => {
             verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000)  // Token valid for 24 hours
         });
 
+        const tokenPayload = {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            role: newUser.role
+        };
+
+        const token = generateJWT(tokenPayload)
+
         return {
             error: false,
             data: {
-                newUser
+                message: "Registration successful.",
+                token,
+                user: {
+                    id: newUser.id,
+                    firstName: newUser.firstName,
+                    lastName: newUser.lastName,
+                    username: newUser.username,
+                    email: newUser.email,
+                    role: newUser.role
+                }
             }
         };
 
     } catch (error) {
         console.error("Error adding user:", error);
         return formatErrorResponse("AddUser", ERROR_MESSAGES.addingUser)
+    };
+};
+
+const getUser = async (identifier, password) => {
+    try {
+        let user;
+        if (validateEmail(identifier).error) {
+            user = await User.findOne({ where: { username: identifier } });
+        } else {
+            user = await User.findOne({ where: { email: identifier } });
+        }
+
+        if (!user) {
+            return formatErrorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials);
+        }
+
+        const passwordMatch = await bcrypt.compare(password, user.hash);
+        if (!passwordMatch) {
+            return formatErrorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials);
+        }
+
+        const tokenPayload = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+        };
+
+        const token = generateJWT(tokenPayload);
+
+        if (!token) {
+            return formatErrorResponse("LoginUser", ERROR_MESSAGES.JWTtoken);
+        }
+
+        return {
+            error: false,
+            data: {
+                message: "Login successful.",
+                token,
+                user: {
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role
+                }
+            }
+        };
+    } catch (error) {
+        console.error("Error logging in user:", error);
+        return formatErrorResponse("LoginUser", ERROR_MESSAGES.fetchingUser)
     };
 };
 
@@ -276,5 +327,6 @@ module.exports = {
     deleteUser,
     updateUser,
     addUser,
+    getUser,
     updatePassword
 };
