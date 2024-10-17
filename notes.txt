@@ -1,0 +1,12 @@
+TO DO:
+    JSON WEB TOKEN
+    ROUTES
+        [
+            REGISTER
+            LOGIN
+            DELETE
+            GET SELF
+        ]
+
+PLANS:
+    Real-Time Messaging
