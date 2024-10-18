@@ -8,8 +8,11 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json());
 app.use(cors());
 
-const { userRoutes } = require('./routes');
-app.use('/users', userRoutes);
+const { addUserToReq } = require('./auth');
+app.use(addUserToReq)
+
+const apiRoutes = require('./routes');
+app.use('/api', apiRoutes);
 
 db.sequelize.sync().then(() => {
     app.listen(PORT, () => {

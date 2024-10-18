@@ -12,7 +12,6 @@ module.exports = {
         username: 'JDoe69',
         email: 'parkernash2001@gmail.com',
         hash: await bcrypt.hash("Password01!", 4),
-        role: "GST",
         emailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -23,7 +22,6 @@ module.exports = {
         username: 'SMagee05',
         email: 'email01@website.com',
         hash: await bcrypt.hash("Password02!", 4),
-        role: "GST",
         emailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -34,7 +32,6 @@ module.exports = {
         username: 'MallCop911',
         email: 'email03@website.com',
         hash: await bcrypt.hash("Password03!", 4),
-        role: "OWN",
         emailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date()

@@ -1,60 +1,16 @@
-const express = require('express');
-const router = express.Router();
+const { Router } = require('express');
+const usersRoutes = Router();
 const userController = require('../controllers/user');
-const { formatErrorResponse, ERROR_MESSAGES } = require('../util');
+const { errorResponse, ERROR_MESSAGES } = require('../util');
+const { requireUser } = require('../auth');
 
 // Route to get all users
-router.get('/:chunkIndex/:chunkSize', async (req, res) => {
-    const chunkIndex = parseInt(req.params.chunkIndex) || 0;
-    const chunkSize = parseInt(req.params.chunkSize) || 10;
+usersRoutes.get('/', userController.getUsersByPagination);
+usersRoutes.get('/:userId', userController.getUserById);
+usersRoutes.post('/register', userController.registerUser);
+usersRoutes.post('/login', userController.loginUser);
 
-    try {
-        const result = await userController.getUsersByPagination(chunkIndex, chunkSize);
+const accountRoutes = require('./account')
+usersRoutes.use('/account', requireUser, accountRoutes);
 
-        if (result.error) {
-            return res.status(500).json(result);
-        }
-
-        return res.status(200).json(result);
-
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        return res.status(500).json(formatErrorResponse("FetchingUsers", ERROR_MESSAGES.fetchingUsers))
-    }
-});
-
-router.post('/register', async (req, res) => {
-    try {
-        const result = await userController.addUser(req.body);
-        if (result.error) {
-            return res.status(500).json(result);
-        }
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error('Error registering user:', error);
-        return res.status(500).json(formatErrorResponse("RegisterUser", ERROR_MESSAGES.registration));
-    };
-});
-
-router.post('/login', async (req, res) => {
-    const { identifier, password } = req.body
-
-    if (!identifier || !password) {
-        return res.status(400).json(formatErrorResponse("LoginUser", "Please supply username and password."))
-    }
-    try {
-        const result = await userController.getUser(identifier, password);
-
-        if (result.error) {
-            return res.status(401).json(result);
-        }
-        
-        return res.status(200).json(result);
-
-    } catch (error) {
-        console.error("Error logging in user:", error);
-        return res.status(500).json(formatErrorResponse("LoginUser", ERROR_MESSAGES.login));
-    };
-});
-
-module.exports = router;
+module.exports = usersRoutes;

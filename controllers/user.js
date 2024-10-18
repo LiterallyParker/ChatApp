@@ -1,39 +1,50 @@
 require("dotenv").config();
-const { Op } = require('sequelize')
-const db = require("../models");
+const { Op } = require('sequelize');
+const { User } = require("../models");
 const bcrypt = require("bcrypt");
-const User = db.User;
-const { formatErrorResponse, validateEmail, ERROR_MESSAGES } = require("../util")
-const { generateEmailToken, generateJWT } = require("../auth");
+
+const {
+    errorResponse,
+    successResponse,
+    validateEmail,
+    validatePassword,
+    ERROR_MESSAGES,
+} = require("../util");
+
+const {
+    generateEmailToken,
+    generateJWT
+} = require("../auth");
 
 const REQUIRED_FIELDS = ["username", "password", "email", "confirmedEmail", "confirmedPassword"];
 
-const addUser = async (userData) => {
+const registerUser = async ( req, res ) => {
 
-    const { firstName, lastName, username, email, confirmedEmail, password, confirmedPassword } = userData;
+    const { firstName, lastName, username, email, confirmedEmail, password, confirmedPassword } = req.body;
     const nameSupplied = firstName && lastName;
 
     for (const field of REQUIRED_FIELDS) {
-        if (!userData[field]) {
-            return formatErrorResponse("AddUser", ERROR_MESSAGES.missingFields)
+        if (!req.body[field]) {
+            return res.status(400).json(errorResponse("AddUser", ERROR_MESSAGES.missingFields));
         };
     };
 
     if (email !== confirmedEmail) {
-        return formatErrorResponse("AddUser", ERROR_MESSAGES.emailMismatch);
+        return res.status(400).json(errorResponse("AddUser", ERROR_MESSAGES.emailMismatch));
     };
 
     const emailValidation = validateEmail(email);
     if (emailValidation.error) {
-        return emailValidation;
-    }
+        return res.status(400).json(emailValidation);
+    };
 
-    if (password.length < 10 || !/[A-Z]/.test(password)) {
-        return formatErrorResponse("AddUser", ERROR_MESSAGES.invalidPassword);
+    const passwordValidation = validatePassword(password);
+    if (passwordValidation.error) {
+        return res.status(400).json(passwordValidation);
     };
 
     if (password !== confirmedPassword) {
-        return formatErrorResponse("AddUser", ERROR_MESSAGES.passwordMismatch);
+        return res.status(400).json(errorResponse("AddUser", ERROR_MESSAGES.passwordMismatch));
     };
 
     try {
@@ -48,18 +59,14 @@ const addUser = async (userData) => {
 
         if (existingUser) {
             if (existingUser.email === email) {
-                return formatErrorResponse("AddUser", ERROR_MESSAGES.duplicateEmail);
+                return res.status(400).json(errorResponse("AddUser", ERROR_MESSAGES.emailInUse));
             };
             if (existingUser.username === username) {
-                return formatErrorResponse("AddUser", ERROR_MESSAGES.duplicateUsername);
+                return res.status(400).json(errorResponse("AddUser", ERROR_MESSAGES.usernameInUse));
             };
         };
 
-        const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10)
-
-        if (isNaN(SALT_ROUNDS) || SALT_ROUNDS <= 0) {
-            return formatErrorResponse("AddUser", ERROR_MESSAGES.invalidSaltRounds);
-        };
+        const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 4;
 
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -70,7 +77,6 @@ const addUser = async (userData) => {
             lastName: !nameSupplied ? "User" : lastName,
             username,
             email,
-            role: "NUSR",
             hash: hashedPassword,
             verificationToken,
             verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000)  // Token valid for 24 hours
@@ -78,95 +84,98 @@ const addUser = async (userData) => {
 
         const tokenPayload = {
             id: newUser.id,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
             username: newUser.username,
-            email: newUser.email,
-            role: newUser.role
+            email: newUser.email
         };
 
-        const token = generateJWT(tokenPayload)
+        const token = generateJWT(tokenPayload);
 
-        return {
-            error: false,
-            data: {
-                message: "Registration successful.",
-                token,
-                user: {
-                    id: newUser.id,
-                    firstName: newUser.firstName,
-                    lastName: newUser.lastName,
-                    username: newUser.username,
-                    email: newUser.email,
-                    role: newUser.role
-                }
+        return res.status(200).json(successResponse({
+            message: "Registration successful.",
+            token,
+            user: {
+                id: newUser.id,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                username: newUser.username,
+                email: newUser.email
             }
-        };
+        }));
 
     } catch (error) {
         console.error("Error adding user:", error);
-        return formatErrorResponse("AddUser", ERROR_MESSAGES.addingUser)
+        return res.status(500).json(errorResponse("AddUser", ERROR_MESSAGES.addingUser));
     };
 };
 
-const getUser = async (identifier, password) => {
+const loginUser = async ( req, res ) => {
+    const { identifier, password } = req.body;
+
     try {
         let user;
         if (validateEmail(identifier).error) {
             user = await User.findOne({ where: { username: identifier } });
         } else {
             user = await User.findOne({ where: { email: identifier } });
-        }
+        };
 
         if (!user) {
-            return formatErrorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials);
-        }
+            return res.status(400).json(errorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials));
+        };
 
         const passwordMatch = await bcrypt.compare(password, user.hash);
         if (!passwordMatch) {
-            return formatErrorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials);
-        }
+            return res.status(400).json(errorResponse("LoginUser", ERROR_MESSAGES.invalidCredentials));
+        };
 
         const tokenPayload = {
             id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
             username: user.username,
-            email: user.email,
-            role: user.role
+            email: user.email
         };
 
         const token = generateJWT(tokenPayload);
 
         if (!token) {
-            return formatErrorResponse("LoginUser", ERROR_MESSAGES.JWTtoken);
-        }
-
-        return {
-            error: false,
-            data: {
-                message: "Login successful.",
-                token,
-                user: {
-                    id: user.id,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    username: user.username,
-                    email: user.email,
-                    role: user.role
-                }
-            }
+            return res.status(500).json(errorResponse("LoginUser", ERROR_MESSAGES.JWTtoken));
         };
+
+        return res.status(200).json(successResponse({
+            message: "Login successful.",
+            token,
+            user: {
+                id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                email: user.email
+            }
+        }));
+
     } catch (error) {
         console.error("Error logging in user:", error);
-        return formatErrorResponse("LoginUser", ERROR_MESSAGES.fetchingUser)
+        return res.status(500).json(errorResponse("LoginUser", ERROR_MESSAGES.fetchingUser));
     };
 };
 
-const getUsersByPagination = async (chunkIndex, chunkSize) => {
+const fetchUser = async (req, res) => {
+    res.send(req.user);
+};
+
+const getUsersByPagination = async ( req, res ) => {
+    const chunkIndex = parseInt(req.query.chunkIndex) || 0;
+    const limit = parseInt(req.query.chunkSize) || 10;
+    const offset = chunkIndex * limit;
 
     if (chunkIndex < 0 || chunkSize <= 0) {
-        return formatErrorResponse("FetchUsers", ERROR_MESSAGES.pagination)
+        return res.status(500).json(errorResponse("FetchUsers", ERROR_MESSAGES.pagination));
     };
 
     try {
-        const offset = chunkIndex * chunkSize;
         const users = await User.findAll({
             attributes: ['id', 'firstName', 'lastName', 'username', 'email'],
             limit: chunkSize,
@@ -175,158 +184,210 @@ const getUsersByPagination = async (chunkIndex, chunkSize) => {
         const totalCount = await User.count();
 
         if (!users.length) {
-            return formatErrorResponse("FetchUsers", ERROR_MESSAGES.pagination)
-        }
-        
-        return {
-            error: false,
-            data: {
-                users,
-                totalCount,
-                totalPages: Math.ceil(totalCount / chunkSize)
-            }
+            return res.status(500).json(errorResponse("FetchUsers", ERROR_MESSAGES.pagination));
         };
+
+        return res.status(200).json(successResponse({
+            users,
+            totalCount,
+            totalPages: Math.ceil(totalCount / chunkSize)
+        }));
 
     } catch (error) {
         console.error(error);
-        return formatErrorResponse("FetchUsers", ERROR_MESSAGES.fetchingUsers);
+        return res.status(500).json(errorResponse("FetchUsers", ERROR_MESSAGES.fetchingUsers));
     };
 };
 
-const getUserById = async (id) => {
+const getUserById = async ( req, res ) => {
+    const { userId } = req.params;
+
     try {
-        const user = await User.findByPk(id);
+        const user = await User.findByPk(userId, {
+            attributes: ["id", "firstName", "lastName", "username", "email"]
+        });
+
         if (!user) {
-            return formatErrorResponse("FetchUser", ERROR_MESSAGES.fetchingUser);
-        }
-        return {
-            error: false,
-            data: user
+            return res.status(500).json(errorResponse("FetchUser", ERROR_MESSAGES.userNotFound));
         };
+
+        return res.status(200).json(successResponse({ user }));
     } catch (error) {
-        console.error(`Error finding User#${id}:`, error);
-        return formatErrorResponse("FetchUser", ERROR_MESSAGES.fetchingUser);
+        console.error(`Error finding User#${userId}:`, error);
+        return errorResponse("FetchUser", ERROR_MESSAGES.fetchingUser);
     };
 };
 
-const deleteUser = async (id) => {
+const deleteUser = async ( req, res ) => {
+    const { userId } = req.params;
+
     try {
         const result = await User.destroy({
-            where: { id: id }
+            where: { id: userId }
         });
 
         if (result === 0) {
-            return formatErrorResponse("DeleteUser", `Error deleting User#${id}.`);
+            return res.status(400).json(errorResponse("DeleteUser", ERROR_MESSAGES.userNotFound));
         };
 
-        return { error: false, data: { message: "User deleted successfully." } };
+        return res.status(200).json(successResponse({ message: "User deleted successfully." }));
     } catch (error) {
-        console.error(`Error deleting User#${id}:`, error);
-        return formatErrorResponse("DeleteUser", ERROR_MESSAGES.deletingUser);
+        console.error(`Error deleting User#${userId}:`, error);
+        return res.status(500).json(errorResponse("DeleteUser", ERROR_MESSAGES.deletingUser));
     };
 };
 
-const updateUser = async (id, params = {}) => {
+const updateName = async ( req, res ) => {
+    const { id: userId } = req.user;
+    const { firstname, lastname } = req.body;
+
     try {
-        const existingUser = await User.findByPk(id);
-        if (!existingUser) {
-            return formatErrorResponse("UpdateUser", `User#${id} does not exist.`)
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json(errorResponse("UpdateName", ERROR_MESSAGES.userNotFound));
         };
 
-        const { email, username } = req.params;
-        let conflictingUser;
-
-        if (email || username) {
-            conflictingUser = await User.findOne({
-                where: {
-                    [Op.or]: [
-                        { email: email || null },
-                        { username: username || null }
-                    ],
-                    id: { [Op.ne]: id }
-                }
-            });
+        if (firstname === user.firstname) {
+            return res.status(400).json(errorResponse("UpdateName", ERROR_MESSAGES.sameFirstName));
+        };
+        if (lastname === user.lastname) {
+            return res.status(400).json(errorResponse("UpdateName", ERROR_MESSAGES.sameLastName));
         };
 
-        if (conflictingUser) {
-            if (conflictingUser.email === email) {
-                return formatErrorResponse("UpdateUser", ERROR_MESSAGES.duplicateEmail);
-            };
-            if (conflictingUser.username === username) {
-                return formatErrorResponse("UpdateUser", ERROR_MESSAGES.duplicateUsername);
-            };
-        };
-
-        if (email) {
-            validateEmail(email);
+        if (firstname) {
+            user.firstname = firstname;
+        }
+        if (lastname) {
+            user.lastName = lastname;
         }
 
-        delete params.password;
-        delete params.role;
-
-        const [updatedRows] = await User.update(params, {
-            where: { id: id }
-        });
-
-        if (updatedRows === 0) {
-            return formatErrorResponse("UpdateUser", ERROR_MESSAGES.updatingUser)
-        };
-
-        const updatedUser = await User.findByPk(id);
-        return {
-            error: false,
-            data: {
-                updatedUser
-            }
-        };
+        await user.save();
+        
+        return res.status(200).json(successResponse({ message: "Name updated successfully." }));
 
     } catch (error) {
-        console.error(`Error updating User#${id}:`, error);
-        return formatErrorResponse("UpdateUser", ERROR_MESSAGES.updatingUser)
+        console.error("Error updating name:", error);
+        return res.status(500).json(errorResponse("UpdateName", ERROR_MESSAGES.updatingName));
     };
 };
 
-const updatePassword = async (id, oldPassword, newPassword, confirmedNewPassword) => {
+const updateUsername = async ( req, res ) => {
+    const { id: userId } = req.user;
+    const { username } = req.body;
+
+    try {
+        const user = await User.findByPk(userId);
+        if (!user) {
+            res.status(404).json(errorResponse("UpdateUsername", ERROR_MESSAGES.userNotFound));
+        };
+
+        const conflictingUser = await User.findOne({
+            where: {
+                username
+            }
+        });
+
+        if (conflictingUser) {
+            return res.status(400).json(errorResponse("UpdateUsername", ERROR_MESSAGES.usernameInUse))
+        };
+
+        user.username = username;
+        await user.save();
+        
+        return res.status(200).json(successResponse({ message: "Username updated successfully." }));
+
+    } catch (error) {
+        console.error("Error updating username:", error);
+        return res.status(500).json(errorResponse("updateUsername", ERROR_MESSAGES.updatingUsername));
+    };
+};
+
+const updateEmail = async ( req, res ) => {
+    const { id: userId } = req.user;
+    const { email } = req.body;
+
+    try {
+        const user = await User.findByPk(userId);
+        if (!user) {
+            res.status(404).json(errorResponse("UpdateEmail", ERROR_MESSAGES.userNotFound));
+        };
+
+        const conflictingUser = await User.findOne({
+            where: {
+                email
+            }
+        });
+
+        if (conflictingUser) {
+            return res.status(400).json(errorResponse("UpdateEmail", ERROR_MESSAGES.emailInUse))
+        };
+
+        const emailValidation = validateEmail(email);
+        if (emailValidation.error) {
+            return res.status(400).json(emailValidation);
+        };
+
+        user.email = email;
+        await user.save();
+        
+        return res.status(200).json(successResponse({ message: "Email updated successfully." }));
+
+    } catch (error) {
+        console.error("Error updating email:", error);
+        return res.status(500).json(errorResponse("UpdateEmail", ERROR_MESSAGES.updatingEmail));
+    };
+};
+
+const updatePassword = async ( req, res ) => {
+    const { userId } = req.user.id;
+    const {
+        oldPassword,
+        newPassword,
+        confirmedNewPassword
+    } = req.body;
 
     if (newPassword !== confirmedNewPassword) {
-        return formatErrorResponse("UpdatePassword", ERROR_MESSAGES.passwordMismatch);
+        return res.status(400).json(errorResponse("UpdatePassword", ERROR_MESSAGES.passwordMismatch));
     };
 
     try {
         const user = await User.findByPk(id);
         if (!user) {
-            return formatErrorResponse("UpdatePassword", ERROR_MESSAGES.fetchingUser);
-        }
+            return res.status(404).json(errorResponse("UpdatePassword", ERROR_MESSAGES.userNotFound));
+        };
 
         const passwordMatch = await bcrypt.compare(oldPassword, user.hash);
         if (!passwordMatch) {
-            return formatErrorResponse("UpdatePassword", ERROR_MESSAGES.incorrectPassword)
-        }
+            return res.status(400).json(errorResponse("UpdatePassword", ERROR_MESSAGES.incorrectPassword));
+        };
 
         if (newPassword.length < 10 || !/[A-Z]/.test(newPassword)) {
-            return formatErrorResponse("UpdatePassword", ERROR_MESSAGES.invalidPassword)
-        }
+            return res.status(400).json(errorResponse("UpdatePassword", ERROR_MESSAGES.invalidPassword));
+        };
 
         const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10);
-        const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+        const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
         user.hash = hashedPassword;
         await user.save();
 
-        return { error: false, data: { message: "Password Updated Successfully." } };
+        return res.status(200).json(successResponse({ message: "Password Updated Successfully." }));
 
     } catch (error) {
-        console.error(`Error updating password for User#${id}:`, error);
-        return formatErrorResponse("UpdatePassword", ERROR_MESSAGES.updatingPassword)
-    }
-}
+        console.error(`Error updating password for User#${userId}:`, error);
+        return res.status(500).json(errorResponse("UpdatePassword", ERROR_MESSAGES.updatingPassword));
+    };
+};
 
 module.exports = {
     getUsersByPagination,
     getUserById,
     deleteUser,
-    updateUser,
-    addUser,
-    getUser,
-    updatePassword
+    registerUser,
+    loginUser,
+    fetchUser,
+    updateName,
+    updateUsername,
+    updateEmail,
+    updatePassword,
 };

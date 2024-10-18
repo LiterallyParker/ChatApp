@@ -1,12 +1,7 @@
 TO DO:
-    JSON WEB TOKEN
-    ROUTES
-        [
-            REGISTER
-            LOGIN
-            DELETE
-            GET SELF
-        ]
+    re-write funcs with (req res) bc we now know why it was a good thing hahahahahahahahahahahahahahahahahahahaha
+    Add messages to Chatroom
+    Remove messages from Chatroom
 
 PLANS:
-    Real-Time Messaging
+    Real-Time Group/One-on-One Messaging
