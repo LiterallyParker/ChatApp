@@ -1,6 +1,9 @@
 require("dotenv").config();
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { ERROR_MESSAGES, errorResponse } = require("../util");
+const { User } = require('../models');
+const { getUserById } = require("../controllers/user");
 
 const generateJWT = (payload) => {
     try {
@@ -34,14 +37,13 @@ const addUserToReq = async (req, res, next) => {
         try {
 
             const verifiedToken = jwt.verify(token, process.env.JWT_SECRET);
+            const { id } = verifiedToken;
+            console.log(id);
 
-            if (verifiedToken) {
-                req.user = {
-                    id: verifiedToken.id,
-                    username: verifiedToken.username,
-                    email: verifiedToken.email,
-                    role: verifiedToken.role
-                };
+            if (id) {
+                req.user = await User.findByPk(id, {
+                    attributes: ["id", "firstName", "lastName", "email", "username"]
+                });
                 next();
             };
 
@@ -59,11 +61,7 @@ const addUserToReq = async (req, res, next) => {
 
 const requireUser = async (req, res, next) => {
     if (!req.user) {
-        res.status(401);
-        next({
-            error: true,
-            message: "User must be logged in to perform this action."
-        });
+        res.status(401).json(errorResponse("Authorization", ERROR_MESSAGES.notLoggedIn));
     };
     next();
 };

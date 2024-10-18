@@ -19,7 +19,6 @@ module.exports = (sequelize, DataTypes) => {
     username: DataTypes.STRING,
     email: DataTypes.STRING,
     hash: DataTypes.STRING,
-    role: DataTypes.STRING,
     emailVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false

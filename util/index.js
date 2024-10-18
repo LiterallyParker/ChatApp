@@ -51,9 +51,12 @@ const ERROR_MESSAGES = {
     updatingName: "Error while updating name.",
     sameFirstName: "First name is the same as previous.",
     sameLastName: "Last name is the same as previous.",
+    sameUsername: "Username is the same as previous.",
+    invalidParameter: "1 or more parameters are invalid.",
+    notLoggedIn: "User must be logged in to perform this action."
 };
 
-const errorResponse = (name, message) => ({
+const errorResponse = (name, message = "There was an error :(") => ({
     error: true,
     name: name + "Error",
     message
