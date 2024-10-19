@@ -3,7 +3,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    await queryInterface.createTable("ChatroomUsers", {
+    await queryInterface.createTable("ChatroomUser", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -14,7 +14,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: "Users",
+          model: "User",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -24,7 +24,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: "Chatrooms",
+          model: "Chatroom",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -42,7 +42,7 @@ module.exports = {
       }
     });
 
-    await queryInterface.addConstraint("ChatroomUsers", {
+    await queryInterface.addConstraint("ChatroomUser", {
       fields: ["userId", "chatroomId"],
       type: "unique",
       name: "unique_user_chatroom"
@@ -50,7 +50,7 @@ module.exports = {
   },
 
   async down (queryInterface, Sequelize) {
-    await queryInterface.removeConstraint("ChatroomUsers", "unique_user_chatroom");
-    await queryInterface.dropTable("ChatroomUsers");
+    await queryInterface.removeConstraint("ChatroomUser", "unique_user_chatroom");
+    await queryInterface.dropTable("ChatroomUser");
   }
 };

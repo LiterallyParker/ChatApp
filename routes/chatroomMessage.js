@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const chatroomMessageRoutes = Router();
-const { getMessages, addMessage, removeMessage } = require("../controllers/chatroomMessages");
+const { getMessages, addMessage, removeMessage } = require("../controllers/chatroomMessage");
 const { requireUser } = require('../auth');
 
 chatroomMessageRoutes.get("/:chatroomId", getMessages);
