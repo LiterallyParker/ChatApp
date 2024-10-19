@@ -1,7 +1,14 @@
 TO DO:
-    re-write funcs with (req res) bc we now know why it was a good thing hahahahahahahahahahahahahahahahahahahaha
-    Add messages to Chatroom
-    Remove messages from Chatroom
+    Add Roles with custom permissions
 
 PLANS:
-    Real-Time Group/One-on-One Messaging
+    Custom Chatrooms
+    Custom roles, created by chatroom creator.
+    Permissions: [
+        Add Messages,
+        Remove Messages,
+        Add Users,
+        Remove Users,
+        Change Name,
+        Change User Roles
+    ]

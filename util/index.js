@@ -1,4 +1,4 @@
-const { ChatroomUser } = require("../models");
+const { ChatroomUser, Chatroom } = require("../models");
 
 const ERROR_MESSAGES = {
     missingFields: "Please supply required fields.",
@@ -62,6 +62,7 @@ const ERROR_MESSAGES = {
     emptyMessage: "Cannot submit an empty message.",
     fetchingChatroomUsers: "Error while fetching this chatroom's users.",
     chatroomUsersNotFound: "Chatroom Users not found.",
+    fetchingChatroom: "Error while fetching chatroom.",
 };
 
 const errorResponse = (name, message = "There was an error :(") => ({
@@ -108,7 +109,7 @@ const validateEmail = (email) => {
     return { error: false };
 };
 
-const validatePrivateChatroom = async ( chatroomId, userId ) => {
+const validateChatroomUser = async ( chatroomId, userId ) => {
     // Return true or false depending on whether the user with id: userId is an included member in the chatroomUsers table or not
     try {
         const chatroomUser = await ChatroomUser.findOne({
@@ -119,9 +120,26 @@ const validatePrivateChatroom = async ( chatroomId, userId ) => {
         });
 
         return chatroomUser !== null;
+        
     } catch (error) {
         console.error("Error validating user against chatroom:", error);
         return errorResponse("ValidatePrivateChatroom");
+    };
+};
+
+const validateChatroomOwner = async ( chatroomId, userId ) => {
+    try {
+        const chatroom = await Chatroom.findOne({
+            where: {
+                id: chatroomId,
+                createdBy: userId
+            }
+        });
+
+        return chatroom !== null;
+    } catch (error) {
+        console.error("Error validating chatroom owner:", error);
+        return errorResponse("ValidateChatroomOwner")
     }
 }
 
@@ -131,5 +149,6 @@ module.exports = {
     successResponse,
     validatePassword,
     validateEmail,
-    validatePrivateChatroom
+    validateChatroomUser,
+    validateChatroomOwner,
 };

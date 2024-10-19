@@ -1,10 +1,17 @@
 const { ChatroomUser, User, Chatroom } = require("../models");
-const { successResponse, errorResponse, ERROR_MESSAGES } = require("../util");
+const { successResponse, errorResponse, ERROR_MESSAGES, validateChatroomOwner } = require("../util");
 
 const addUserToChatroom = async ( req, res ) => {
     const { userId, chatroomId } = req.body;
+    const { id: ownerId } = req.user;
 
     try {
+        const isChatroomOwner = await validateChatroomOwner(chatroomId, ownerId);
+
+        if (!isChatroomOwner) {
+            return res.status(400).json(errorResponse("NewChatroomUser", ERROR_MESSAGES.chatroomPermissions));
+        };
+
         const existingUser = await ChatroomUser.findOne({
             where: {
                 userId,
@@ -35,7 +42,9 @@ const addUserToChatroom = async ( req, res ) => {
     }
 };
 
-const removeUserFromChatroom = async (userId, chatroomId) => {
+const removeUserFromChatroom = async ( req, res ) => {
+    const { userId, chatroomId } = req.body;
+
     try {
         const chatroomUser = await ChatroomUser.findOne({
             where: {

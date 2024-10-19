@@ -1,5 +1,5 @@
 const { Chatroom, ChatroomUser, ChatroomMessage } = require("../models");
-const { errorResponse, successResponse, ERROR_MESSAGES } = require("../util");
+const { errorResponse, successResponse, ERROR_MESSAGES, validateChatroomUser } = require("../util");
 
 const createChatroom = async ( req, res ) => {
     const { name, chatType, isPrivate, userIds } = req.body;
@@ -108,8 +108,8 @@ const changeChatroomName = async ( req, res ) => {
     try {
 
         if (!newName || newName.trim() === "") {
-            return res.status(400).json(errorResponse("ChangeChatroomName", ERROR_MESSAGES.invalidChatroomName))
-        }
+            return res.status(400).json(errorResponse("ChangeChatroomName", ERROR_MESSAGES.invalidChatroomName));
+        };
 
         const chatroom = await Chatroom.findOne({
             where: {
@@ -144,8 +144,32 @@ const changeChatroomName = async ( req, res ) => {
     };
 };
 
+const getChatroom = async ( req, res ) => {
+    const { chatroomId } = req.params;
+    const { id: userId } = req.user;
+
+    try {
+        const chatroom = await Chatroom.findByPk(chatroomId);
+        if (!chatroom) {
+            return res.status(404).json(errorResponse("FetchChatroom", ERROR_MESSAGES.chatroomNotFound));
+        };
+        if (chatroom.isPrivate) {
+            const chatroomUserValidation = await validateChatroomUser(chatroomId, userId);
+            if (!chatroomUserValidation) {
+                return res.status(400).json(errorResponse("FetchChatroom", ERROR_MESSAGES.chatroomPermissions));
+            };
+        };
+        return res.status(200).json(successResponse({ chatroom }));
+
+    } catch (error) {
+        console.error("Error fetching chatroom:", error);
+        return res.status(500).json(errorResponse("FetchChatroom", ERROR_MESSAGES.fetchingChatroom));
+    };
+};
+
 module.exports = {
     createChatroom,
     deleteChatroom,
-    changeChatroomName
+    changeChatroomName,
+    getChatroom
 };

@@ -1,5 +1,5 @@
 const { ChatroomMessage, ChatroomUser, Chatroom } = require("../models");
-const { errorResponse, ERROR_MESSAGES, successResponse } = require("../util");
+const { errorResponse, ERROR_MESSAGES, successResponse, validateChatroomUser } = require("../util");
 
 const getMessages = async ( req, res ) => {
     const { chatroomId } = req.params
@@ -17,18 +17,14 @@ const getMessages = async ( req, res ) => {
         });
 
         if (!chatroom) {
-            return res.status(404).json(errorResponse("GetMessages", ERROR_MESSAGES.chatroomNotFound));
+            return res.status(404).json(errorResponse("FetchMessages", ERROR_MESSAGES.chatroomNotFound));
         };
         
         if (chatroom.isPrivate) {
-            const chatroomUser = await ChatroomUser.findOne({
-                where: {
-                    chatroomId,
-                    userId
-                }
-            });
+            const chatroomUser = await validateChatroomUser(chatroomId, userId)
+            console.log(chatroomUser)
             if (!chatroomUser) {
-                return res.status(400).json(ERROR_MESSAGES.privateChatroom);
+                return res.status(400).json(errorResponse("FetchMessages", ERROR_MESSAGES.privateChatroom));
             };
         };
 
