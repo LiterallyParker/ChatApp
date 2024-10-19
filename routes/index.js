@@ -8,4 +8,10 @@ apiRoutes.use('/users', userRoutes);
 const accountRoutes = require('./account');
 apiRoutes.use('/account', requireUser, accountRoutes);
 
-module.exports = apiRoutes
+const chatroomRoutes = require('./chatroom');
+apiRoutes.use('/chatroom', requireUser, chatroomRoutes);
+
+const chatroomUserRoutes = require('./chatroomUsers');
+apiRoutes.use('/chatroomUsers', requireUser, chatroomUserRoutes);
+
+module.exports = apiRoutes;

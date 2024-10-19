@@ -53,7 +53,10 @@ const ERROR_MESSAGES = {
     sameLastName: "Last name is the same as previous.",
     sameUsername: "Username is the same as previous.",
     invalidParameter: "1 or more parameters are invalid.",
-    notLoggedIn: "User must be logged in to perform this action."
+    notLoggedIn: "User must be logged in to perform this action.",
+    samePassword: "New password must be different from the last password.",
+    conflictingChatroomName: "A chatroom with that name already exists.",
+    unknownRoute: "Route does not exist."
 };
 
 const errorResponse = (name, message = "There was an error :(") => ({

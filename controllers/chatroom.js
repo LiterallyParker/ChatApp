@@ -2,10 +2,18 @@ const { Chatroom, ChatroomUser, ChatroomMessage } = require("../models");
 const { errorResponse, successResponse, ERROR_MESSAGES } = require("../util");
 
 const createChatroom = async ( req, res ) => {
-    const { name, chatType, isPrivate } = req.body;
+    const { name, chatType, isPrivate, userIds } = req.body;
     const { id: userId } = req.user;
 
     try {
+        const conflictingChatroom = await Chatroom.findOne({
+            where: {
+                name
+            }
+        });
+        if (conflictingChatroom) {
+            return res.status(400).json(errorResponse("CreateChatroom", ERROR_MESSAGES.conflictingChatroomName));
+        };
 
         if (!chatType || !['group', 'one-on-one'].includes(chatType)) {
             return res.status(400).json(errorResponse("CreateChatroom", ERROR_MESSAGES.invalidChatroom));
@@ -22,6 +30,19 @@ const createChatroom = async ( req, res ) => {
             userId,
             chatroomId: newChatroom.id
         });
+
+        if (Array.isArray(userIds) && userIds.length > 0) {
+            const validUserIds = userIds.filter(id => id !== userId);
+
+            const chatroomUsers = validUserIds.map(id => ({
+                userId: id,
+                chatroomId: newChatroom.id
+            }));
+
+            if (chatroomUsers.length > 0) {
+                await ChatroomUser.bulkCreate(chatroomUsers);
+            };
+        };
 
         return res.status(200).json(successResponse({
             chatroom: newChatroom,

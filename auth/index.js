@@ -3,11 +3,10 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { ERROR_MESSAGES, errorResponse } = require("../util");
 const { User } = require('../models');
-const { getUserById } = require("../controllers/user");
 
 const generateJWT = (payload) => {
     try {
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' })
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1w' })
         return token;
     } catch (error) {
         console.error("Error generating JWT:", error);
@@ -38,7 +37,6 @@ const addUserToReq = async (req, res, next) => {
 
             const verifiedToken = jwt.verify(token, process.env.JWT_SECRET);
             const { id } = verifiedToken;
-            console.log(id);
 
             if (id) {
                 req.user = await User.findByPk(id, {

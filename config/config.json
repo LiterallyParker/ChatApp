@@ -2,22 +2,25 @@
   "development": {
     "username": "parker",
     "password": "odie",
-    "database": "test",
+    "database": "chatroomApp",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "logging": false
   },
   "test": {
     "username": "parker",
     "password": "odie",
-    "database": "test",
+    "database": "chatroomApp",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "logging": false
   },
   "production": {
     "username": "parker",
     "password": "odie",
-    "database": "test",
+    "database": "chatroomApp",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "logging": false
   }
 }

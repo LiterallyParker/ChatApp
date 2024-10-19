@@ -1,9 +1,10 @@
 const { ChatroomUser, User, Chatroom } = require("../models");
 const { successResponse, errorResponse, ERROR_MESSAGES } = require("../util");
 
-const addUserToChatroom = async ( userId, chatroomId ) => {
+const addUserToChatroom = async ( req, res ) => {
+    const { userId, chatroomId } = req.body;
+
     try {
-        
         const existingUser = await ChatroomUser.findOne({
             where: {
                 userId,
@@ -12,7 +13,7 @@ const addUserToChatroom = async ( userId, chatroomId ) => {
         });
         
         if (existingUser) {
-            return errorResponse("NewChatroomUser", ERROR_MESSAGES.userInChatroom);
+            return res.status(400).json(errorResponse("NewChatroomUser", ERROR_MESSAGES.userInChatroom));
         };
         
         const newChatroomUser = await ChatroomUser.create({
@@ -20,17 +21,17 @@ const addUserToChatroom = async ( userId, chatroomId ) => {
             chatroomId
         });
         
-        const { name: chatroomName } = await Chatroom.findByPk(userId);
+        const { name: chatroomName } = await Chatroom.findByPk(chatroomId);
         const { username } = await User.findByPk(userId);
 
-        return successResponse({
+        return res.status(200).json(successResponse({
             chatroomUser: newChatroomUser,
             message: `${username} has been added to ${chatroomName}.`
-        });
+        }));
 
     } catch (error) {
         console.error("Error adding user to chatroom:", error);
-        return errorResponse("NewChatroomUser", ERROR_MESSAGES.newChatroomUser)
+        return res.status(500).json(errorResponse("NewChatroomUser", ERROR_MESSAGES.newChatroomUser));
     }
 };
 

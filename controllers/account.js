@@ -155,12 +155,17 @@ const updatePassword = async ( req, res ) => {
             return res.status(404).json(errorResponse("UpdatePassword", ERROR_MESSAGES.userNotFound));
         };
 
+        const samePassword = await bcrypt.compare(newPassword, user.hash);
+        if (samePassword) {
+            return res.status(400).json(errorResponse("UpdatePassword", ERROR_MESSAGES.samePassword))
+        }
+
         const passwordMatch = await bcrypt.compare(oldPassword, user.hash);
         if (!passwordMatch) {
             return res.status(400).json(errorResponse("UpdatePassword", ERROR_MESSAGES.incorrectPassword));
         };
 
-        const passwordValidation = validatePassword(password);
+        const passwordValidation = validatePassword(newPassword);
         if (passwordValidation.error) {
             return res.status(400).json("UpdatePassword", passwordValidation.message);
         };
@@ -190,4 +195,4 @@ module.exports = {
     updateUsername,
     updatePassword,
     fetchUser,
-}
+};
