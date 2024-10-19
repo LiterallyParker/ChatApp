@@ -1,6 +1,6 @@
 require("dotenv").config();
 const { Op } = require('sequelize');
-const { User } = require("../models");
+const { User, Chatroom, ChatroomUser } = require("../models");
 const bcrypt = require("bcrypt");
 
 const {
@@ -8,6 +8,7 @@ const {
     successResponse,
     validateEmail,
     validatePassword,
+    validatePrivateChatroom,
     ERROR_MESSAGES,
 } = require("../util");
 
@@ -195,6 +196,47 @@ const getUsersByPagination = async ( req, res ) => {
     };
 };
 
+const getUsersByChatroom = async ( req, res ) => {
+    const { chatroomId } = req.params;
+    const { id: userId } = req.user;
+
+    try {
+        const chatroom = await Chatroom.findOne({
+            where: {
+                id: chatroomId
+            }
+        });
+        if (!chatroom) {
+            res.status(404).json(errorResponse("FetchChatroomUsers", ERROR_MESSAGES.chatroomNotFound));
+        };
+        if (chatroom.isPrivate) {
+            if (!validatePrivateChatroom(chatroomId, userId)) {
+                return res.status(400).json("FetchChatroomUsers", ERROR_MESSAGES.unauthorized);
+            };
+        };
+        const chatroomUsers = await ChatroomUser.findAll({
+            where: {
+                chatroomId: chatroom.id
+            },
+            include: [{
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'username', 'email']
+            }]
+        });
+        if (!chatroomUsers || chatroomUsers.length === 0) {
+            res.status(404).json(errorResponse("FetchChatroomUsers", ERROR_MESSAGES.chatroomUsersNotFound));
+        };
+
+        const users = chatroomUsers.map(chatroomUser => chatroomUser.User)
+
+        return res.status(200).json(successResponse({ users }));
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json(errorResponse("FetchChatroomUsers", ERROR_MESSAGES.fetchingChatroomUsers));
+    };
+};
+
 const getUserById = async ( req, res ) => {
     const { userId } = req.params;
     if (isNaN(parseInt(userId))) {
@@ -219,6 +261,7 @@ const getUserById = async ( req, res ) => {
 
 module.exports = {
     getUsersByPagination,
+    getUsersByChatroom,
     getUserById,
     registerUser,
     loginUser,

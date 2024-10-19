@@ -2,10 +2,10 @@ const { ChatroomMessage, ChatroomUser, Chatroom } = require("../models");
 const { errorResponse, ERROR_MESSAGES, successResponse } = require("../util");
 
 const getMessages = async ( req, res ) => {
-    const { chatroomId } = req.query
+    const { chatroomId } = req.params
 
-    const chunkIndex = parseInt(req.query.chunkIndex) || 0;
-    const limit = parseInt(req.query.chunkSize) || 30;
+    const chunkIndex = parseInt(req.body.chunkIndex, 10) || 0;
+    const limit = parseInt(req.body.chunkSize, 10) || 30;
     const offset = chunkIndex * limit;
 
     const { id: userId } = req.user;
@@ -60,8 +60,12 @@ const getMessages = async ( req, res ) => {
 };
 
 const addMessage = async ( req, res ) => {
-    const { chatroomId, message } = req.body;
-    const { id } = req.user;
+    const { chatroomId } = req.params;
+    const { content } = req.body;
+    const { id: userId } = req.user;
+    if (!content) {
+        return res.status(400).json(errorResponse("AddMessage", ERROR_MESSAGES.emptyMessage));
+    };
 
     try {
         const chatroomUser = await ChatroomUser.findOne({
@@ -78,7 +82,7 @@ const addMessage = async ( req, res ) => {
         const newMessage = await ChatroomMessage.create({
             userId,
             chatroomId,
-            message
+            content
         });
 
         return res.status(200).json(successResponse({
@@ -133,7 +137,8 @@ const removeMessage = async ( req, res ) => {
     };
 };
 
-module.exports = { 
+module.exports = {
+    getMessages,
     addMessage,
     removeMessage
 };

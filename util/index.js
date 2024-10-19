@@ -1,3 +1,5 @@
+const { ChatroomUser } = require("../models");
+
 const ERROR_MESSAGES = {
     missingFields: "Please supply required fields.",
     emailMismatch: "Emails do not match.",
@@ -56,7 +58,10 @@ const ERROR_MESSAGES = {
     notLoggedIn: "User must be logged in to perform this action.",
     samePassword: "New password must be different from the last password.",
     conflictingChatroomName: "A chatroom with that name already exists.",
-    unknownRoute: "Route does not exist."
+    unknownRoute: "Route does not exist.",
+    emptyMessage: "Cannot submit an empty message.",
+    fetchingChatroomUsers: "Error while fetching this chatroom's users.",
+    chatroomUsersNotFound: "Chatroom Users not found.",
 };
 
 const errorResponse = (name, message = "There was an error :(") => ({
@@ -103,10 +108,28 @@ const validateEmail = (email) => {
     return { error: false };
 };
 
+const validatePrivateChatroom = async ( chatroomId, userId ) => {
+    // Return true or false depending on whether the user with id: userId is an included member in the chatroomUsers table or not
+    try {
+        const chatroomUser = await ChatroomUser.findOne({
+            where: {
+                chatroomId,
+                userId
+            }
+        });
+
+        return chatroomUser !== null;
+    } catch (error) {
+        console.error("Error validating user against chatroom:", error);
+        return errorResponse("ValidatePrivateChatroom");
+    }
+}
+
 module.exports = {
     ERROR_MESSAGES,
     errorResponse,
     successResponse,
     validatePassword,
-    validateEmail
+    validateEmail,
+    validatePrivateChatroom
 };

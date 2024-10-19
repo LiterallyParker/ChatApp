@@ -14,4 +14,7 @@ apiRoutes.use('/chatroom', requireUser, chatroomRoutes);
 const chatroomUserRoutes = require('./chatroomUsers');
 apiRoutes.use('/chatroomUsers', requireUser, chatroomUserRoutes);
 
+const chatroomMessageRoutes = require('./chatroomMessages');
+apiRoutes.use('/chatroomMessages', chatroomMessageRoutes);
+
 module.exports = apiRoutes;
